@@ -4,7 +4,7 @@
 
 1. 声明式UI（JSX）
 2. 组件化：通过搭积木的方式拼成一个完整的页面，通过组件的抽象可以增加复用能力和提高可维护性
-3. react既可以开发web应用，也可以使用同样的语法开发原生应用（react-native），比如安卓和IOS应用，甚至可以使用react开发VR应用，React更像一个远框架，为各种领域赋能
+3. react既可以开发web应用，也可以使用同样的语法开发原生应用（react-native），比如安卓和IOS应用，甚至可以使用react开发VR应用，React更像一个源框架，为各种领域赋能
 
 ### 1.2 环境初始化
 
@@ -1239,4 +1239,632 @@ function App() {
 export default App;
 ```
 
-6.6 通过依赖项控制执行时机
+### 6.6 通过依赖项控制useEffect执行时机
+
+1. 默认情况下，一上来先执行一次，接着组件更新一次就执行一次
+2. 添加空数组依赖项，只会在初始化时执行一次
+
+```
+ useEffect(() => {
+    console.log("The side effect is executed again");
+    document.title = 1;
+  }, []); 
+```
+
+3. 依赖特定项时，组件初始化时执行一次，依赖的特定项发生变化时会再次执行
+
+   注意：如果在回调函数中使用了某个数据状态，就应该把它加入到依赖项中
+
+```
+useEffect(() => {
+    console.log("The side effect is executed again");
+    document.title = count;
+    console.log(name);
+  }, [count,name]);
+```
+
+某种意义上，hooks的出现就是不想哟用生命周期的概念也可以写业务代码
+
+### 6.7 使用案例
+
+```
+import { useState } from "react";
+
+function useWindowScroll () {
+  
+  const [y,setY] = useState(0) //返回一个值和值的方法
+
+  window.addEventListener('scroll',() => {
+    const h = document.documentElement.scrollTop;//获取变动值
+    setY(h) //赋值给y
+  })
+  return [y]
+}
+```
+
+```
+import { useWindowScroll } from "./hooks/useWindowScroll";
+
+function App() {
+  const [y] = useWindowScroll(); //直接调用了属于是
+  console.log(y);
+  return <div style={{ height: "12000px" }}>{y}</div>;
+}
+
+export default App;
+```
+
+将新改变的值同步至本地
+
+```
+import { useEffect, useState } from "react";
+
+export function useLocalStorage(key, defaultValue) {
+  const [messages, setMessages] = useState(defaultValue);
+
+  useEffect(() => {
+    window.localStorage.setItem(key, messages);
+  }, [messages, key]);
+
+  return [messages, setMessages];
+}
+```
+
+```
+import { useWindowScroll } from "./hooks/useWindowScroll";
+import { useLocalStorage } from "./hooks/useLocalStorage";
+
+function App() {
+  const [y] = useWindowScroll();
+  const [message, setMessage] = useLocalStorage("hook-key", "阿菲");
+
+  setTimeout(() => {
+    setMessage("yivei");
+  }, 5000);
+
+  return (
+    <div style={{ height: "12000px" }}>
+      {y} {message}
+    </div>
+  );
+}
+
+export default App;
+```
+
+### 6.8 回调函数的参数
+
+```
+import React from "react";
+import { useState, useEffect } from "react";
+
+function Counter(props) {
+  const [count, setCount] = useState(() => {
+    return props.count + 1;
+  });
+  console.log(count);
+  return <button onClick={() => setCount(count + 1)}>{count}</button>;
+}
+function App() {
+  return (
+    <div>
+      <Counter count={10} />
+      <Counter count={20} />
+    </div>
+  );
+}
+
+export default App;
+```
+
+```
+import React from "react";
+import { useState, useEffect } from "react";
+
+function getDefaultValue() {
+  for (let i = 0; i < 10000; i++) {}
+  return "1";
+}
+
+function Counter(props) {
+  const [count, setCount] = useState(() => {
+    // return props.count + 1;
+    return getDefaultValue();
+  });
+  console.log(count);
+  return <button onClick={() => setCount(count + 1)}>{count}</button>;
+}
+function App() {
+  return (
+    <div>
+      <Counter />
+      <Counter count={10} />
+      <Counter count={20} />
+    </div>
+  );
+}
+
+export default App;
+```
+
+### 6.9 清除副作用
+
+```
+import React from "react";
+import { useState, useEffect } from "react";
+
+function Test() {
+  useEffect(() => {
+    let timer = setInterval(() => {
+      console.log("timer is executed");
+    }, 1000);
+
+    return () => {
+      clearInterval(timer);
+    };
+  }, []);
+  return <div>this is test</div>;
+}
+function App() {
+  const [flag, setFlag] = useState(true);
+  return (
+    <div>
+      {flag ? <Test /> : null}
+      <button onClick={() => setFlag(!flag)}>switch</button>
+    </div>
+  );
+}
+
+export default App;
+```
+
+### 6.10 useEffect 发送网络请求
+
+```
+import React from "react";
+import { useState, useEffect } from "react";
+
+function App() {
+  useEffect(() => {
+    async function loadData() {
+      //fetch is method to get info which browser support natively
+      const res = await fetch("http://geek.itheima.net/v1_0/channels")
+        .then((response) => response.json())
+        .then((data) => console.log(data));
+    }
+    loadData();
+  }, []);
+
+  return <div>loadData()</div>;
+}
+
+export default App;
+```
+
+### 6.11 useRef
+
+```
+import React from "react";
+import { useRef, useEffect } from "react";
+class TestC extends React.Component {
+  getName = () => {
+    return "this is child test";
+  };
+
+  render() {
+    return <div>this is class component</div>;
+  }
+}
+
+function App() {
+  const testRef = useRef(null);
+  const h1Ref = useRef(null);
+
+  useEffect(() => {
+    console.log(testRef, h1Ref);
+  });
+
+  return (
+    <div>
+      <TestC ref={testRef} />
+      <h1 ref={h1Ref}>this is h1</h1>
+    </div>
+  );
+}
+
+export default App;
+```
+
+useEffect的回调是在dom渲染之后
+
+### 6.12 useContext 使用
+
+```
+import React from "react";
+import { useContext, useState, createContext } from "react";
+
+const Context = createContext();
+
+function ComA() {
+  const count = useContext(Context);
+  return (
+    <div>
+      it comes from A
+      <br />
+      App passed data is: {count}
+      <ComC />
+    </div>
+  );
+}
+
+function ComC() {
+  // const count = useContext(Context);
+  const count = useContext(Context);
+  return (
+    <div>
+      it comes from C
+      <br />
+      App passed data is: {count}
+    </div>
+  );
+}
+
+function App() {
+  const [count, setCount] = useState(100);
+  return (
+    <div>
+      <Context.Provider value={count}>
+        <ComA />
+        <button
+          onClick={() => {
+            setCount(count + 1);
+          }}
+        >
+          +
+        </button>
+      </Context.Provider>
+    </div>
+  );
+}
+
+export default App;
+
+```
+
+## 7 Router
+
+### 7.1 路由的基础使用
+
+```
+import Home from "./Home";
+import About from "./About";
+import { BrowserRouter, Link, Routes, Route } from "react-router-dom";
+
+function App() {
+  return (
+    //non-hash model router
+    <BrowserRouter>
+      {/*specify the link to switch*/}
+      <Link to="/">Home</Link>
+      <Link to="/About">About</Link>
+
+      <Routes>
+        {/*the relationship of component and path*/}
+        <Route path="/" element={<Home />} />
+        <Route path="/About" element={<About />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+export default App;
+
+```
+
+### 7.2 路由模式组件说明
+
+两种：HashRouter, BrowserRouter
+
+### 7.3 编程式导航-实现跳转
+
+```
+import { useNavigate } from "react-router-dom"; //1.import function
+
+function Login() {
+  const navigate = useNavigate(); //define a function
+
+  //use a new function to use function above
+  function goAbout() {
+    navigate("/About", { replace: true });
+  }
+
+  return (
+    <div>
+      Login
+      <button onClick={goAbout}>go to About</button>
+    </div>
+  );
+}
+
+export default Login;
+
+```
+
+### 7.4 编程式导航-跳转携带参数
+
+```
+import { useSearchParams } from "react-router-dom";
+function About() {
+  const [params] = useSearchParams();
+  //params is an object with a method get
+  const id = params.get("id");
+  const name = params.get("name");
+  return (
+    <div>
+      The id is {id}, the name is {name}
+    </div>
+  );
+}
+
+export default About;
+```
+
+方式二
+
+```
+import Home from "./Home";
+import About from "./About";
+import Login from "./Login";
+
+import {
+  HashRouter,
+  BrowserRouter,
+  Link,
+  Routes,
+  Route,
+} from "react-router-dom";
+
+function App() {
+  return (
+    //non-hash model router
+    <BrowserRouter>
+      {/*specify the link to switch*/}
+      <Link to="/">Home</Link>
+      <Link to="/About">About</Link>
+
+      <Routes>
+        {/*the relationship of component and path*/}
+        <Route path="/" element={<Home />} />
+        <Route path="/About/:id" element={<About />} />
+        <Route path="/Login" element={<Login />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+export default App;
+
+```
+
+### 7.5 嵌套路由的实现
+
+```
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Layout from "./Layout";
+import Login from "./Login";
+import Board from "./Board";
+import Article from "./Article";
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Layout />}>
+          <Route path="board" element={<Board />}></Route>
+          <Route path="article" element={<Article />}></Route>
+        </Route>
+        <Route path="/login" element={<Login />}></Route>
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+export default App;
+```
+
+默认路由
+
+```
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Layout from "./Layout";
+import Login from "./Login";
+import Board from "./Board";
+import Article from "./Article";
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Layout />}>
+          <Route index element={<Board />}></Route>
+          <Route path="board" element={<Board />}></Route>
+          <Route path="article" element={<Article />}></Route>
+        </Route>
+        <Route path="/login" element={<Login />}></Route>
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+export default App;
+```
+
+404 页面
+
+```
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Layout from "./Layout";
+import Login from "./Login";
+import Board from "./Board";
+import Article from "./Article";
+import NotFound from "./NotFound";
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Layout />}>
+          <Route index element={<Board />}></Route>
+          <Route path="board" element={<Board />}></Route>
+          <Route path="article" element={<Article />}></Route>
+        </Route>
+        <Route path="/login" element={<Login />}></Route>
+        <Route path="*" element={<NotFound />}></Route>
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+export default App;
+```
+
+## 8 Mobx
+
+优势：简单，最优渲染，架构自由
+
+### 8.1 环境搭建
+
+```
+npx create-react-app react-mob //react项目
+```
+
+```
+yarn add mobx mobx-react-lite
+```
+
+### 8.2 创建store
+
+```
+import { makeAutoObservable } from "mobx";
+
+class CounterStore {
+  count = 0; //define a variable
+
+  constructor() {
+    makeAutoObservable(this); //make it responsive
+  }
+
+  addCount = () => {
+    //change data
+    this.count++;
+  };
+}
+
+const counterStore = new CounterStore();
+
+export { counterStore };
+```
+
+```
+import { counterStore } from "./store/counter";
+import { observer } from "mobx-react-lite";
+
+function App() {
+  return (
+    <div className="App">
+      {counterStore.count}
+      <button onClick={counterStore.addCount}>+</button>
+    </div>
+  );
+}
+
+export default observer(App);
+```
+
+### 8.3 mobx-computed 计算属性
+
+```
+import { makeAutoObservable } from "mobx";
+
+class CounterStore {
+  count = 0; //define a variable
+  list = [1, 2, 3, 4, 5, 6];
+
+  constructor() {
+    makeAutoObservable(this); //make it responsive
+  }
+
+  addCount = () => {
+    //change data
+    this.count++;
+  };
+
+  get filterList() {
+    return this.list.filter((item) => item > 2);
+  }
+  addList = () => {
+    return this.list.push(7, 8, 9);
+  };
+}
+
+const counterStore = new CounterStore();
+
+export { counterStore };
+```
+
+```
+import { counterStore } from "./store/counter";
+import { observer } from "mobx-react-lite";
+
+function App() {
+  return (
+    <div className="App">
+      {counterStore.count}
+      {counterStore.filterList.join("-")}
+      <button onClick={counterStore.addCount}>+</button>
+      <button onClick={counterStore.addList}>changeList</button>
+    </div>
+  );
+}
+
+export default observer(App);
+```
+
+### 8.4 模块化
+
+```
+import { ListStore } from "./list.Store";
+import { CounterStore } from "./counter.Store";
+import React, { createContext } from "react";
+
+class RootStore {
+  constructor() {
+    this.CounterStore = new CounterStore();
+    this.ListStore = new ListStore();
+  }
+}
+
+const rootStore = new RootStore();
+const context = React.createContext(rootStore);
+const useStore = () => React.useContext(context);
+
+export { useStore };
+```
+
+```
+import { observer } from "mobx-react-lite";
+import { useStore } from "./store/index";
+
+function App() {
+  const rootStore = useStore();
+  console.log(rootStore);
+  return (
+    <div className="App">
+      {rootStore.CounterStore.count}
+      <button onClick={rootStore.CounterStore.addCount}>+</button>
+    </div>
+  );
+}
+
+export default observer(App);
+```
