@@ -1,152 +1,154 @@
-import { useState,useEffect} from 'react'
-import Head from 'next/head'
-import Web3 from 'web3'
-import lotteryContract from '../blockchain/lottery'
-import Image from 'next/image'
-import styles from '../styles/Home.module.css'
-import 'bulma/css/bulma.css' 
-
+import { useState, useEffect } from "react";
+import Head from "next/head";
+import Web3 from "web3";
+import lotteryContract from "../blockchain/lottery";
+import Image from "next/image";
+import styles from "../styles/Home.module.css";
+import "bulma/css/bulma.css";
 
 export default function Home() {
-  const [web3,setWeb3] = useState()
-  const [address,setAddress] = useState()
-  const [lcContract,setLcContract] = useState()
-  const [lotteryPot,setLotteryPot] = useState()
-  const [lotteryPlayers,setPlayers] = useState([])
-  const [lotteryHistory,setLotteryHistory] = useState([])
-  const [lotteryId,setLotteryId]= useState()
-  const [error,setError] = useState('')
-  const [successMsg,setSuccessMsg] = useState('')
- 
+  const [web3, setWeb3] = useState();
+  const [address, setAddress] = useState();
+  const [lcContract, setLcContract] = useState();
+  const [lotteryPot, setLotteryPot] = useState();
+  const [lotteryPlayers, setPlayers] = useState([]);
+  const [lotteryHistory, setLotteryHistory] = useState([]);
+  const [lotteryId, setLotteryId] = useState();
+  const [error, setError] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
 
-  useEffect(()=>{
-    updateState()
-  },[lcContract])
+  useEffect(() => {
+    updateState();
+  }, [lcContract]);
 
   const updateState = () => {
-    if (lcContract) getPot()
-    if (lcContract) getPlayers()
-    if (lcContract) getLotteryId()
-  }
+    if (lcContract) getPot();
+    if (lcContract) getPlayers();
+    if (lcContract) getLotteryId();
+  };
 
   const getPot = async () => {
-    const pot = await lcContract.methods.getBalance().call()
-    setLotteryPot(web3.utils.fromWei(pot,'ether'))
-  }
+    const pot = await lcContract.methods.getBalance().call();
+    setLotteryPot(web3.utils.fromWei(pot, "ether"));
+  };
 
   const getPlayers = async () => {
-    const players = await lcContract.methods.getPlayers().call()
-    setPlayers(players)
-  }
+    const players = await lcContract.methods.getPlayers().call();
+    setPlayers(players);
+  };
 
   const getHistory = async (id) => {
     for (let i = parseInt(id); i > 0; i--) {
-      console.log('get history') 
-      const winnerAddress = await lcContract.methods.lotteryHistory(i).call()
-      const historyObj = {}
-      historyObj.id = i
-      historyObj.address = winnerAddress
-      setLotteryHistory(lotteryHistory => [...lotteryHistory,historyObj]) //set react state variable
+      console.log("get history");
+      const winnerAddress = await lcContract.methods.lotteryHistory(i).call();
+      const historyObj = {};
+      historyObj.id = i;
+      historyObj.address = winnerAddress;
+      setLotteryHistory((lotteryHistory) => [...lotteryHistory, historyObj]); //set react state variable
     }
-  }
+  };
 
   const getLotteryId = async () => {
-    const lotteryId = await lcContract.methods.lotteryId().call()
-    setLotteryId(lotteryId)
-    await getHistory(lotteryId)
-    console.log(JSON.stringify(lotteryHistory))
-  }
+    const lotteryId = await lcContract.methods.lotteryId().call();
+    setLotteryId(lotteryId);
+    await getHistory(lotteryId);
+    console.log(JSON.stringify(lotteryHistory));
+  };
 
   const entryLotteryHandler = async () => {
-    setError('') 
+    setError("");
     try {
       await lcContract.methods.enter().send({
         from: address,
         value: 15000000000000000,
-        gas: '300000' ,
-        gasPrice: null
-      }) 
-      updateState()
-    } catch(err) {
-      setError(err.message)
+        gas: "300000",
+        gasPrice: null,
+      });
+      updateState();
+    } catch (err) {
+      setError(err.message);
     }
-  }
+  };
 
   const pickWinnerHandler = async () => {
-    setError('') 
+    setError("");
 
-    console.log(`address from pick winner :: ${address}`)
+    console.log(`address from pick winner :: ${address}`);
     try {
       await lcContract.methods.pickWinner().send({
         from: address,
-        gas: '300000' ,
-        gasPrice: null
-      }) 
-    } catch(err) {
-      setError(err.message)
-    }  
-  }
+        gas: "300000",
+        gasPrice: null,
+      });
+    } catch (err) {
+      setError(err.message);
+    }
+  };
 
   const payWinnerHandler = async () => {
-    setError('') 
-    setSuccessMsg('')
+    setError("");
+    setSuccessMsg("");
     try {
       await lcContract.methods.payWinner().send({
         from: address,
-        gas: '300000' ,
-        gasPrice: null
-      }) 
-      console.log(`lottery id :: ${lotteryId}`)
-      const winnerAddress = await lcContract.methods.lotteryHistory(lotteryId).call()
-      setSuccessMsg(`The winner is ${winnerAddress}`)
-      updateState()
-    }catch(err) {
-      setError(err.message)
+        gas: "300000",
+        gasPrice: null,
+      });
+      console.log(`lottery id :: ${lotteryId}`);
+      const winnerAddress = await lcContract.methods
+        .lotteryHistory(lotteryId)
+        .call();
+      setSuccessMsg(`The winner is ${winnerAddress}`);
+      updateState();
+    } catch (err) {
+      setError(err.message);
     }
-  }
+  };
 
   /*define a function to connect wallet*/
   const connectWalletHandler = async () => {
-    setError('') 
-  /*check if MetaMask is installed*/
-  if (typeof window !== "undefined" && typeof window.ethereum != "undefined") {
-    try {
-      /*request to connect the wallet*/
-      await window.ethereum.request({method:"eth_requestAccounts"})
-      /*create web3 instance */
-      const web3 = new Web3(window.ethereum)
-      /*use global instance */
-      /*set web3 instance in react state*/
-      setWeb3(web3) 
-      /* get list of accounts,use the web3 instance  */
-      const accounts = await web3.eth.getAccounts()
-      /*set account to react state*/
-      setAddress(accounts[0])
+    setError("");
+    /*check if MetaMask is installed*/
+    if (
+      typeof window !== "undefined" &&
+      typeof window.ethereum != "undefined"
+    ) {
+      try {
+        /*request to connect the wallet*/
+        await window.ethereum.request({ method: "eth_requestAccounts" });
+        /*create web3 instance */
+        const web3 = new Web3(window.ethereum);
+        /*use global instance */
+        /*set web3 instance in react state*/
+        setWeb3(web3);
+        /* get list of accounts,use the web3 instance  */
+        const accounts = await web3.eth.getAccounts();
+        /*set account to react state*/
+        setAddress(accounts[0]);
 
-      /*create local contract copy */
-      const lc = lotteryContract(web3)
-      setLcContract(lc)
+        /*create local contract copy */
+        const lc = lotteryContract(web3);
+        setLcContract(lc);
 
-      window.ethereum.on('accountsChanged', async () =>{
-        const accounts = await web3.eth.getAccounts()
-        console.log(accounts[0])
-        setAddress(accounts[0]) 
-      })
-
-    } catch(err){
-      setError(err.message)
+        window.ethereum.on("accountsChanged", async () => {
+          const accounts = await web3.eth.getAccounts();
+          console.log(accounts[0]);
+          setAddress(accounts[0]);
+        });
+      } catch (err) {
+        setError(err.message);
+      }
+    } else {
+      /*MetaMask not installed*/
+      console.log("Please install MetaMask");
     }
-  }else {
-    /*MetaMask not installed*/
-    console.log("Please install MetaMask")
-  }
-}
+  };
 
   return (
-    <div >
+    <div>
       <Head>
-        <title>Ether Lottery</title> //标题
-        <meta name="description" content="An Ethereum Lottery dApp" /> 
+        <title>Ether Lottery</title>
+        <meta name="description" content="An Ethereum Lottery dApp" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
@@ -157,7 +159,9 @@ export default function Home() {
               <h1>Ether Lottery</h1>
             </div>
             <div className="navbar-end">
-              <button onClick= {connectWalletHandler} className="button is-link">Connect Wallet</button>
+              <button onClick={connectWalletHandler} className="button is-link">
+                Connect Wallet
+              </button>
             </div>
           </div>
         </nav>
@@ -167,15 +171,34 @@ export default function Home() {
               <div className="column is-two-thirds">
                 <section className="mt-5">
                   <p>Enter the lottery by sending 0.01 Ether</p>
-                  <button onClick= {entryLotteryHandler} className="button is-link is-large is-light mt-3">Play now</button>
+                  <button
+                    onClick={entryLotteryHandler}
+                    className="button is-link is-large is-light mt-3"
+                  >
+                    Play now
+                  </button>
                 </section>
                 <section className="mt-6">
-                  <p><b>Admin only:</b>Pick winner</p>
-                  <button onClick= {pickWinnerHandler} className="button is-primary is-large is-light mt-3">Pick winner</button>
+                  <p>
+                    <b>Admin only:</b>Pick winner
+                  </p>
+                  <button
+                    onClick={pickWinnerHandler}
+                    className="button is-primary is-large is-light mt-3"
+                  >
+                    Pick winner
+                  </button>
                 </section>
                 <section className="mt-6">
-                  <p><b>Admin only:</b>Pay winner</p>
-                  <button onClick= {payWinnerHandler} className="button is-success is-large is-light mt-3">Pay winner</button>
+                  <p>
+                    <b>Admin only:</b>Pay winner
+                  </p>
+                  <button
+                    onClick={payWinnerHandler}
+                    className="button is-success is-large is-light mt-3"
+                  >
+                    Pay winner
+                  </button>
                 </section>
                 <section>
                   <div className="container has-text-danger mt-6">
@@ -193,21 +216,28 @@ export default function Home() {
                   <div className="card">
                     <div className="card-content">
                       <div className="content">
-                          <h2>Lottery history</h2>
-                          {
-                            (lotteryHistory && lotteryHistory.length >0) && lotteryHistory.map(item => {
-                              if (lotteryId != item.id) {
-                                return <div className= "history-entry mt-3" key={item.id}>
+                        <h2>Lottery history</h2>
+                        {lotteryHistory &&
+                          lotteryHistory.length > 0 &&
+                          lotteryHistory.map((item) => {
+                            if (lotteryId != item.id) {
+                              return (
+                                <div
+                                  className="history-entry mt-3"
+                                  key={item.id}
+                                >
                                   <div> Lottery #{item.id} winner:</div>
-                                  <div> 
-                                    <a href = {`https://cn.etherscan.com/address/${item.address}`} target="_blank" >
-                                    {item.address}
+                                  <div>
+                                    <a
+                                      href={`https://cn.etherscan.com/address/${item.address}`}
+                                    >
+                                      {item.address}
                                     </a>
                                   </div>
                                 </div>
-                              }
-                            })
-                          }
+                              );
+                            }
+                          })}
                       </div>
                     </div>
                   </div>
@@ -217,16 +247,20 @@ export default function Home() {
                     <div className="card-content">
                       <div className="content">
                         <h2>Players ({lotteryPlayers.length})</h2>
-                        <ul className="ml-0"> 
-                          {
-                            (lotteryPlayers && lotteryPlayers.length > 0) && lotteryPlayers.map((player,index) => {
-                              return <li key={`${player}-${index}`}>
-                                <a href = {`https://cn.etherscan.com/address/${player}`} target="_blank" >
-                                {player}
-                                </a>
-                              </li>
-                            })
-                          }
+                        <ul className="ml-0">
+                          {lotteryPlayers &&
+                            lotteryPlayers.length > 0 &&
+                            lotteryPlayers.map((player, index) => {
+                              return (
+                                <li key={`${player}-${index}`}>
+                                  <a
+                                    href={`https://cn.etherscan.com/address/${player}`}
+                                  >
+                                    {player}
+                                  </a>
+                                </li>
+                              );
+                            })}
                         </ul>
                       </div>
                     </div>
@@ -237,11 +271,11 @@ export default function Home() {
                     <div className="card-content">
                       <div className="content">
                         <h2>Pot</h2>
-                          <p>{lotteryPot} ETH</p>
+                        <p>{lotteryPot} ETH</p>
                       </div>
                     </div>
                   </div>
-                </section> 
+                </section>
               </div>
             </div>
           </section>
@@ -251,5 +285,5 @@ export default function Home() {
         <p>&copy;2022 Made by SHIYIVEI</p>
       </footer>
     </div>
-  )
+  );
 }
